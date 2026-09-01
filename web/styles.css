@@ -186,3 +186,156 @@ a {
 .footer a {
   color: #737373;
 }
+
+/* Admin */
+.admin-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.admin-actions-top {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.admin-card {
+  border: 1px solid #262626;
+  border-radius: 12px;
+  padding: 1.25rem;
+  background: #111;
+}
+
+.form-grid {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.field-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #a3a3a3;
+}
+
+.field-input {
+  width: 100%;
+  padding: 0.65rem 0.75rem;
+  border: 1px solid #333;
+  border-radius: 8px;
+  background: #0a0a0a;
+  color: #f5f5f5;
+  font: inherit;
+}
+
+.field-input:focus {
+  outline: 2px solid #3b82f6;
+  outline-offset: 1px;
+}
+
+.btn {
+  border: 1px solid #333;
+  border-radius: 8px;
+  padding: 0.55rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  background: #1a1a1a;
+  color: #f5f5f5;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn.primary {
+  background: #2563eb;
+  border-color: #2563eb;
+}
+
+.btn.primary:hover {
+  background: #1d4ed8;
+}
+
+.btn.danger {
+  background: #991b1b;
+  border-color: #991b1b;
+}
+
+.btn.danger:hover {
+  background: #7f1d1d;
+}
+
+.btn.subtle:hover {
+  background: #262626;
+}
+
+.link-btn {
+  color: #f5f5f5;
+}
+
+.btn-row {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.monitor-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 0.5rem;
+}
+
+.monitor-chip {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  padding: 0.4rem 0.5rem;
+  border: 1px solid #262626;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.monitor-chip input {
+  accent-color: #2563eb;
+}
+
+.hint {
+  font-size: 0.8rem;
+  color: #737373;
+  margin: 0.5rem 0 0;
+}
+
+.notice {
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  margin-bottom: 1rem;
+  font-size: 0.9rem;
+}
+
+.notice.success {
+  background: #14532d;
+  color: #86efac;
+  border: 1px solid #166534;
+}
+
+.notice.error {
+  background: #1a0a0a;
+  color: #fca5a5;
+  border: 1px solid #7f1d1d;
+}
+
+.incident-admin {
+  margin-bottom: 1rem;
+}
+
+.incident-admin-head h3 {
+  margin: 0 0 0.25rem;
+  font-size: 1rem;
+}
+

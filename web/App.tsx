@@ -157,7 +157,8 @@ export default function App() {
 
       <footer className="footer">
         <a href="/feed.xml">Atom feed</a> ·{" "}
-        <a href="https://evaakselrad.com">evaakselrad.com</a>
+        <a href="https://evaakselrad.com">evaakselrad.com</a> ·{" "}
+        <a href="/admin">Admin</a>
       </footer>
     </div>
   );

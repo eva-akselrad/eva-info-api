@@ -37,7 +37,10 @@ npm run deploy
 | `ADMIN_API_KEY` | Create/resolve incidents via API |
 | `TURNSTILE_SECRET_PORTFOLIO` | Contact relay for portfolio (same as MyWebsite) |
 
-## API examples
+## Admin UI
+
+Open [status.evaakselrad.com/admin](https://status.evaakselrad.com/admin) and paste your `ADMIN_API_KEY` (stored in sessionStorage for the tab). Create incidents, post updates, resolve, and trigger manual health checks.
+
 
 ```bash
 curl https://status.evaakselrad.com/api/v1/status/status
