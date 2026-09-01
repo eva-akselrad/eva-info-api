@@ -1,0 +1,41 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "eva-info-api",
+  "account_id": "c0bdb071b67899c6590000ba154912e9",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-08-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "observability": { "enabled": true },
+  "assets": {
+    "directory": "./dist",
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/api/*", "/feed.xml"]
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "eva-info-api-db",
+      "database_id": "0b217699-e73c-4393-8ce3-8d849384d374"
+    }
+  ],
+  "send_email": [
+    {
+      "name": "EMAIL",
+      "destination_address": "evaakselrad@gmail.com"
+    }
+  ],
+  "triggers": {
+    "crons": ["*/3 * * * *"]
+  },
+  "routes": [
+    {
+      "pattern": "status.evaakselrad.com",
+      "custom_domain": true
+    }
+  ],
+  "vars": {
+    "FROM_EMAIL": "noreply@evaakselrad.com",
+    "OPS_NOTIFY_EMAIL": "evaakselrad@gmail.com"
+  }
+}
