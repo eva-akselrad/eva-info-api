@@ -6,8 +6,12 @@ const app = new Hono<{ Bindings: Env }>();
 
 app.get("/", async (c) => {
   const active = await c.env.DB.prepare(
-    `SELECT id, title, status, impact, auto, created_at, resolved_at
-     FROM incidents WHERE resolved_at IS NULL ORDER BY created_at DESC`,
+    `SELECT i.id, i.title, i.status, i.impact, i.auto, i.created_at, i.resolved_at,
+            (SELECT body FROM incident_updates WHERE incident_id = i.id ORDER BY created_at DESC LIMIT 1) as latest_update,
+            (SELECT created_at FROM incident_updates WHERE incident_id = i.id ORDER BY created_at DESC LIMIT 1) as latest_update_at
+     FROM incidents i
+     WHERE i.resolved_at IS NULL
+     ORDER BY i.created_at DESC`,
   ).all();
 
   const resolved = await c.env.DB.prepare(
@@ -15,7 +19,20 @@ app.get("/", async (c) => {
      FROM incidents WHERE resolved_at IS NOT NULL ORDER BY resolved_at DESC LIMIT 20`,
   ).all();
 
-  return c.json({ active: active.results ?? [], resolved: resolved.results ?? [] });
+  const activeWithMonitors = (active.results ?? []).map(async (row) => {
+    const monitors = await c.env.DB.prepare(
+      `SELECT m.slug, m.name FROM monitor_incidents mi
+       JOIN monitors m ON m.id = mi.monitor_id WHERE mi.incident_id = ?`,
+    )
+      .bind(row.id as number)
+      .all();
+    return { ...row, monitors: monitors.results ?? [] };
+  });
+
+  return c.json({
+    active: await Promise.all(activeWithMonitors),
+    resolved: resolved.results ?? [],
+  });
 });
 
 app.get("/:id", async (c) => {

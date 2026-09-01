@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { adminFetch, clearAdminKey, getAdminKey, setAdminKey } from "./lib/adminAuth";
+import { INCIDENT_TEMPLATES, UPDATE_TEMPLATES } from "./lib/incidentTemplates";
 
 interface Service {
   slug: string;
@@ -154,6 +155,49 @@ export default function Admin() {
     );
   }
 
+  function applyTemplate(templateId: string) {
+    const template = INCIDENT_TEMPLATES.find((t) => t.id === templateId);
+    if (!template) return;
+    setTitle(template.title);
+    setBody(template.body);
+    setImpact(template.impact);
+    setSelectedMonitors(template.monitorSlugs);
+    setMessage(`Template “${template.label}” applied — edit if needed, then create.`);
+  }
+
+  function applyUpdateTemplate(incidentId: number, templateId: string) {
+    const template = UPDATE_TEMPLATES.find((t) => t.id === templateId);
+    if (!template) return;
+    setUpdateText((prev) => ({ ...prev, [incidentId]: template.body }));
+    setUpdateStatus((prev) => ({ ...prev, [incidentId]: template.status }));
+  }
+
+  async function createFromTemplate(templateId: string) {
+    const template = INCIDENT_TEMPLATES.find((t) => t.id === templateId);
+    if (!template || !key) return;
+    setError(null);
+    setMessage(null);
+
+    const res = await adminFetch("/api/v1/incidents", key, {
+      method: "POST",
+      body: JSON.stringify({
+        title: template.title,
+        body: template.body,
+        impact: template.impact,
+        monitorSlugs: template.monitorSlugs.length ? template.monitorSlugs : undefined,
+      }),
+    });
+
+    const data = (await res.json()) as { id?: number; error?: string };
+    if (!res.ok) {
+      setError(data.error ?? "Failed to create incident");
+      return;
+    }
+
+    setMessage(`Created incident #${data.id} from “${template.label}”.`);
+    await load(key);
+  }
+
   if (!key) {
     return (
       <div className="page">
@@ -201,6 +245,37 @@ export default function Admin() {
 
       {message && <div className="notice success">{message}</div>}
       {error && <div className="notice error">{error}</div>}
+
+      <section className="section">
+        <h2>Quick templates</h2>
+        <p className="hint section-hint">
+          Click to fill the form, or use the lightning button to create immediately.
+        </p>
+        <div className="template-grid">
+          {INCIDENT_TEMPLATES.map((t) => (
+            <div className="template-card" key={t.id}>
+              <div className="template-card-head">
+                <strong>{t.label}</strong>
+                <span className={`impact-badge ${t.impact}`}>{t.impact}</span>
+              </div>
+              <p className="template-preview">{t.title}</p>
+              <div className="btn-row">
+                <button type="button" className="btn subtle" onClick={() => applyTemplate(t.id)}>
+                  Use template
+                </button>
+                <button
+                  type="button"
+                  className="btn primary"
+                  onClick={() => createFromTemplate(t.id)}
+                  title="Create incident immediately"
+                >
+                  Create now
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
 
       <section className="section">
         <h2>New incident</h2>
@@ -285,6 +360,18 @@ export default function Admin() {
               </select>
 
               <label className="field-label" htmlFor={`update-${inc.id}`}>Update message</label>
+              <div className="update-template-row">
+                {UPDATE_TEMPLATES.map((t) => (
+                  <button
+                    key={t.id}
+                    type="button"
+                    className="btn subtle btn-sm"
+                    onClick={() => applyUpdateTemplate(inc.id, t.id)}
+                  >
+                    {t.label}
+                  </button>
+                ))}
+              </div>
               <textarea
                 id={`update-${inc.id}`}
                 className="field-input"

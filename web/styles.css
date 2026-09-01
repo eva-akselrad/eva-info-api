@@ -334,8 +334,264 @@ a {
   margin-bottom: 1rem;
 }
 
+.overall-alert {
+  border-color: #f59e0b;
+  background: #1a1408;
+}
+
+.incidents-hero {
+  margin-top: 0;
+}
+
+.incidents-banner {
+  border-radius: 12px;
+  padding: 1rem 1.25rem;
+  margin-bottom: 1rem;
+  border: 1px solid;
+}
+
+.incidents-banner.impact-critical,
+.incidents-banner.impact-major {
+  background: #2a0a0a;
+  border-color: #ef4444;
+}
+
+.incidents-banner.impact-minor {
+  background: #1a1408;
+  border-color: #f59e0b;
+}
+
+.incidents-banner.impact-none {
+  background: #111;
+  border-color: #525252;
+}
+
+.incidents-banner-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+}
+
+.incidents-banner-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: #ef4444;
+  color: #fff;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  font-size: 1.1rem;
+}
+
+.incidents-banner.impact-minor .incidents-banner-icon {
+  background: #f59e0b;
+}
+
+.incidents-banner-title {
+  margin: 0;
+  font-size: 1.25rem;
+}
+
+.incidents-banner-sub {
+  margin: 0.25rem 0 0;
+  color: #d4d4d4;
+  font-size: 0.95rem;
+}
+
+.incident-feature {
+  border-radius: 12px;
+  padding: 1.25rem 1.35rem;
+  margin-bottom: 0.85rem;
+  border: 1px solid #333;
+  background: #111;
+}
+
+.incident-feature.impact-critical {
+  border-color: #ef4444;
+  background: linear-gradient(135deg, #1a0808 0%, #111 100%);
+  box-shadow: 0 0 0 1px rgba(239, 68, 68, 0.15);
+}
+
+.incident-feature.impact-major {
+  border-color: #f97316;
+  background: linear-gradient(135deg, #1a1008 0%, #111 100%);
+}
+
+.incident-feature.impact-minor {
+  border-color: #f59e0b;
+  background: linear-gradient(135deg, #141008 0%, #111 100%);
+}
+
+.incident-feature-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.75rem;
+}
+
+.incident-feature h3 {
+  margin: 0;
+  font-size: 1.15rem;
+  line-height: 1.35;
+}
+
+.incident-badges {
+  display: flex;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+
+.impact-badge {
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 0.25rem 0.55rem;
+  border-radius: 999px;
+}
+
+.impact-badge.critical {
+  background: #7f1d1d;
+  color: #fecaca;
+}
+
+.impact-badge.major {
+  background: #9a3412;
+  color: #fed7aa;
+}
+
+.impact-badge.minor {
+  background: #78350f;
+  color: #fde68a;
+}
+
+.impact-badge.none {
+  background: #262626;
+  color: #a3a3a3;
+}
+
+.status-pill {
+  font-size: 0.68rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 0.25rem 0.55rem;
+  border-radius: 999px;
+  background: #262626;
+  color: #d4d4d4;
+}
+
+.status-pill.auto {
+  background: #1e3a5f;
+  color: #93c5fd;
+}
+
+.incident-body {
+  margin: 0 0 0.85rem;
+  font-size: 1rem;
+  line-height: 1.55;
+  color: #e5e5e5;
+}
+
+.incident-services {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+  margin-bottom: 0.65rem;
+}
+
+.incident-services-label {
+  font-size: 0.75rem;
+  color: #737373;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.service-tag {
+  font-size: 0.75rem;
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+  background: #262626;
+  color: #d4d4d4;
+}
+
+.all-clear-banner {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  padding: 1rem 1.25rem;
+  border: 1px solid #166534;
+  border-radius: 12px;
+  background: #0a1a10;
+}
+
+.all-clear-banner strong {
+  display: block;
+  color: #86efac;
+}
+
+.all-clear-sub {
+  margin: 0.15rem 0 0;
+  font-size: 0.875rem;
+  color: #737373;
+}
+
+.incident-card.resolved {
+  opacity: 0.85;
+}
+
 .incident-admin-head h3 {
   margin: 0 0 0.25rem;
   font-size: 1rem;
+}
+
+.section-hint {
+  margin: -0.5rem 0 1rem;
+}
+
+.template-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 0.75rem;
+}
+
+.template-card {
+  border: 1px solid #262626;
+  border-radius: 10px;
+  padding: 0.85rem 1rem;
+  background: #0d0d0d;
+}
+
+.template-card-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.35rem;
+}
+
+.template-preview {
+  font-size: 0.8rem;
+  color: #a3a3a3;
+  margin: 0 0 0.75rem;
+  line-height: 1.4;
+}
+
+.btn-sm {
+  padding: 0.35rem 0.65rem;
+  font-size: 0.75rem;
+}
+
+.update-template-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-bottom: 0.5rem;
 }
 
