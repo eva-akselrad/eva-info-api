@@ -22,7 +22,10 @@
   "send_email": [
     {
       "name": "EMAIL",
-      "destination_address": "evaakselrad@gmail.com"
+      "allowed_destination_addresses": [
+        "business@evaakselrad.com",
+        "evaakselrad@gmail.com"
+      ]
     }
   ],
   "triggers": {

@@ -119,7 +119,8 @@ app.post("/", async (c) => {
       message,
     });
   } catch (err) {
-    console.error("Contact email failed", err);
+    const code = err instanceof Error && "code" in err ? String((err as Error & { code?: string }).code) : "";
+    console.error("Contact email failed", code, err);
     return c.json({ error: "Failed to send message. Please try again later." }, 500, cors);
   }
 
