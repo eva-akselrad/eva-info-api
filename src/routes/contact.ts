@@ -13,7 +13,9 @@ const CONTACT_ROUTES: Record<string, ContactRoute> = {
   },
 };
 
-const app = new Hono<{ Bindings: Env }>();
+const ALL_ALLOWED_ORIGINS = [...new Set(
+  Object.values(CONTACT_ROUTES).flatMap((route) => route.allowedOrigins),
+)];
 
 function corsHeaders(origin: string | null | undefined, allowed: string[]): Record<string, string> {
   if (!origin || !allowed.includes(origin)) return {};
@@ -21,16 +23,33 @@ function corsHeaders(origin: string | null | undefined, allowed: string[]): Reco
     "Access-Control-Allow-Origin": origin,
     "Access-Control-Allow-Methods": "POST, OPTIONS",
     "Access-Control-Allow-Headers": "Content-Type",
-    "Vary": "Origin",
+    Vary: "Origin",
   };
 }
 
-app.options("/", (c) => {
-  const project = c.req.query("project") ?? "";
-  const route = CONTACT_ROUTES[project];
-  if (!route) return c.text("", 404);
+function routeForProject(project: string): ContactRoute | undefined {
+  return CONTACT_ROUTES[project];
+}
 
+function routeForOrigin(origin: string | null | undefined): ContactRoute | undefined {
+  if (!origin) return undefined;
+  return Object.values(CONTACT_ROUTES).find((route) => route.allowedOrigins.includes(origin));
+}
+
+const app = new Hono<{ Bindings: Env }>();
+
+app.options("/", (c) => {
   const origin = c.req.header("Origin");
+  const project = c.req.query("project") ?? "";
+  const route = routeForProject(project) ?? routeForOrigin(origin);
+
+  if (!route) {
+    return new Response(null, {
+      status: 403,
+      headers: corsHeaders(origin, ALL_ALLOWED_ORIGINS),
+    });
+  }
+
   return new Response(null, {
     status: 204,
     headers: corsHeaders(origin, route.allowedOrigins),
@@ -38,20 +57,28 @@ app.options("/", (c) => {
 });
 
 app.post("/", async (c) => {
-  const body = await c.req.json<{
+  const origin = c.req.header("Origin");
+  const originRoute = routeForOrigin(origin);
+  const cors = corsHeaders(origin, originRoute?.allowedOrigins ?? ALL_ALLOWED_ORIGINS);
+
+  let body: {
     project?: string;
     name?: string;
     email?: string;
     message?: string;
     turnstileToken?: string;
-  }>();
+  };
+
+  try {
+    body = await c.req.json();
+  } catch {
+    return c.json({ error: "Invalid request body." }, 400, cors);
+  }
 
   const project = body.project?.trim() ?? c.req.query("project") ?? "";
-  const route = CONTACT_ROUTES[project];
-  if (!route) return c.json({ error: "Unknown project" }, 400);
+  const route = routeForProject(project);
+  if (!route) return c.json({ error: "Unknown project" }, 400, cors);
 
-  const origin = c.req.header("Origin");
-  const cors = corsHeaders(origin, route.allowedOrigins);
   if (origin && !route.allowedOrigins.includes(origin)) {
     return c.json({ error: "Origin not allowed" }, 403, cors);
   }
