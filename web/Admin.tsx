@@ -41,6 +41,20 @@ export default function Admin() {
   const [updateText, setUpdateText] = useState<Record<number, string>>({});
   const [updateStatus, setUpdateStatus] = useState<Record<number, string>>({});
 
+  const [maintTitle, setMaintTitle] = useState("Planned maintenance");
+  const [maintDuration, setMaintDuration] = useState(30);
+  const [maintMonitors, setMaintMonitors] = useState<string[]>([]);
+  const [activeMaintenance, setActiveMaintenance] = useState<Array<{
+    id: number;
+    title: string;
+    starts_at: string;
+    ends_at: string;
+    monitor_slugs?: string;
+  }>>([]);
+  const [newKeyName, setNewKeyName] = useState("");
+  const [newKeyScopes, setNewKeyScopes] = useState<string[]>(["status:read"]);
+  const [createdKey, setCreatedKey] = useState<string | null>(null);
+
   const load = useCallback(async (adminKey: string) => {
     setError(null);
     try {
@@ -56,6 +70,14 @@ export default function Admin() {
 
       const incidentsData = (await incidentsRes.json()) as { active?: Incident[] };
       setActive(incidentsData.active ?? []);
+
+      if (adminKey) {
+        const maintRes = await adminFetch("/api/v1/admin/maintenance", adminKey);
+        if (maintRes.ok) {
+          const maintData = (await maintRes.json()) as { windows?: typeof activeMaintenance };
+          setActiveMaintenance(maintData.windows ?? []);
+        }
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Load failed");
     }
@@ -198,6 +220,57 @@ export default function Admin() {
     await load(key);
   }
 
+  async function createMaintenance(e: FormEvent) {
+    e.preventDefault();
+    if (!key || !maintTitle.trim() || !maintMonitors.length) return;
+    setError(null);
+    const res = await adminFetch("/api/v1/admin/maintenance", key, {
+      method: "POST",
+      body: JSON.stringify({
+        title: maintTitle.trim(),
+        monitorSlugs: maintMonitors,
+        durationMinutes: maintDuration,
+      }),
+    });
+    const data = (await res.json()) as { error?: string };
+    if (!res.ok) {
+      setError(data.error ?? "Failed to create maintenance window");
+      return;
+    }
+    setMessage(`Maintenance window active for ${maintDuration} minutes. Auto-incidents suppressed.`);
+    await load(key);
+  }
+
+  async function createReadOnlyKey() {
+    if (!key || !newKeyName.trim()) return;
+    setError(null);
+    setCreatedKey(null);
+    const res = await adminFetch("/api/v1/admin/keys", key, {
+      method: "POST",
+      body: JSON.stringify({ name: newKeyName.trim(), scopes: newKeyScopes }),
+    });
+    const data = (await res.json()) as { key?: string; error?: string };
+    if (!res.ok) {
+      setError(data.error ?? "Failed to create API key");
+      return;
+    }
+    setCreatedKey(data.key ?? null);
+    setMessage("API key created — copy it now; it won't be shown again.");
+    setNewKeyName("");
+  }
+
+  function toggleMaintMonitor(slug: string) {
+    setMaintMonitors((prev) =>
+      prev.includes(slug) ? prev.filter((s) => s !== slug) : [...prev, slug],
+    );
+  }
+
+  function toggleKeyScope(scope: string) {
+    setNewKeyScopes((prev) =>
+      prev.includes(scope) ? prev.filter((s) => s !== scope) : [...prev, scope],
+    );
+  }
+
   if (!key) {
     return (
       <div className="page">
@@ -245,6 +318,95 @@ export default function Admin() {
 
       {message && <div className="notice success">{message}</div>}
       {error && <div className="notice error">{error}</div>}
+
+      <section className="section">
+        <h2>Maintenance window</h2>
+        <p className="hint section-hint">
+          Suppresses auto-incidents for selected services during deploys (30–60 min).
+        </p>
+        {activeMaintenance.length > 0 && (
+          <div className="admin-card">
+            <strong>Active windows</strong>
+            {activeMaintenance.map((w) => (
+              <div className="incident-meta" key={w.id}>
+                {w.title} · until {formatDate(w.ends_at)} · {w.monitor_slugs}
+              </div>
+            ))}
+          </div>
+        )}
+        <form className="admin-card form-grid" onSubmit={createMaintenance}>
+          <label className="field-label" htmlFor="maint-title">Title</label>
+          <input
+            id="maint-title"
+            className="field-input"
+            value={maintTitle}
+            onChange={(e) => setMaintTitle(e.target.value)}
+            required
+          />
+          <label className="field-label" htmlFor="maint-duration">Duration</label>
+          <select
+            id="maint-duration"
+            className="field-input"
+            value={maintDuration}
+            onChange={(e) => setMaintDuration(Number(e.target.value))}
+          >
+            <option value={30}>30 minutes</option>
+            <option value={45}>45 minutes</option>
+            <option value={60}>60 minutes</option>
+            <option value={90}>90 minutes</option>
+          </select>
+          <div className="field-label">Services to suppress</div>
+          <div className="monitor-grid">
+            {services.map((s) => (
+              <label key={s.slug} className="monitor-chip">
+                <input
+                  type="checkbox"
+                  checked={maintMonitors.includes(s.slug)}
+                  onChange={() => toggleMaintMonitor(s.slug)}
+                />
+                <span>{s.name}</span>
+              </label>
+            ))}
+          </div>
+          <button type="submit" className="btn primary">Start maintenance window</button>
+        </form>
+      </section>
+
+      <section className="section">
+        <h2>API keys</h2>
+        <p className="hint section-hint">
+          Your master key in .admin-key.txt has full access. Create scoped keys for automation.
+        </p>
+        <div className="admin-card form-grid">
+          <label className="field-label" htmlFor="key-name">Key name</label>
+          <input
+            id="key-name"
+            className="field-input"
+            value={newKeyName}
+            onChange={(e) => setNewKeyName(e.target.value)}
+            placeholder="CI read-only"
+          />
+          <div className="field-label">Scopes</div>
+          <div className="monitor-grid">
+            {["status:read", "status:write", "admin:*"].map((scope) => (
+              <label key={scope} className="monitor-chip">
+                <input
+                  type="checkbox"
+                  checked={newKeyScopes.includes(scope)}
+                  onChange={() => toggleKeyScope(scope)}
+                />
+                <span>{scope}</span>
+              </label>
+            ))}
+          </div>
+          <button type="button" className="btn primary" onClick={createReadOnlyKey}>
+            Create API key
+          </button>
+          {createdKey && (
+            <code className="key-display">{createdKey}</code>
+          )}
+        </div>
+      </section>
 
       <section className="section">
         <h2>Quick templates</h2>

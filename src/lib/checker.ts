@@ -1,4 +1,6 @@
 import type { CheckType, Env, MonitorRow, OverallStatus } from "../types";
+import { isMonitorInMaintenance } from "./maintenance";
+import { notifyIncidentOpened, notifyIncidentResolved } from "./notifications";
 
 const FAIL_THRESHOLD = 3;
 const RESOLVE_THRESHOLD = 2;
@@ -88,29 +90,26 @@ async function openAutoIncident(env: Env, monitor: MonitorRow): Promise<void> {
     .bind(incidentId, monitor.id)
     .run();
 
-  if (env.OPS_NOTIFY_EMAIL) {
-    try {
-      await env.EMAIL.send({
-        to: env.OPS_NOTIFY_EMAIL,
-        from: { email: env.FROM_EMAIL, name: "Eva Status" },
-        subject: `[Status] ${title}`,
-        text: `Monitor ${monitor.slug} (${monitor.url}) is down after ${FAIL_THRESHOLD} failed checks.`,
-      });
-    } catch (err) {
-      console.error("Failed to send incident email", err);
-    }
+  try {
+    await notifyIncidentOpened(env, {
+      id: incidentId,
+      title,
+      body: `Automated alert: ${monitor.name} failed ${FAIL_THRESHOLD} consecutive checks.`,
+    });
+  } catch (err) {
+    console.error("Failed to send incident email", err);
   }
 }
 
 async function resolveAutoIncident(env: Env, monitorId: number): Promise<void> {
   const row = await env.DB.prepare(
-    `SELECT i.id FROM incidents i
+    `SELECT i.id, i.title FROM incidents i
      JOIN monitor_incidents mi ON mi.incident_id = i.id
      WHERE mi.monitor_id = ? AND i.auto = 1 AND i.resolved_at IS NULL
      ORDER BY i.created_at DESC LIMIT 1`,
   )
     .bind(monitorId)
-    .first<{ id: number }>();
+    .first<{ id: number; title: string }>();
 
   if (!row) return;
 
@@ -120,11 +119,18 @@ async function resolveAutoIncident(env: Env, monitorId: number): Promise<void> {
     .bind(row.id)
     .run();
 
+  const resolveBody = "Service recovered — auto-resolved after successful checks.";
   await env.DB.prepare(
     `INSERT INTO incident_updates (incident_id, body, status) VALUES (?, ?, 'resolved')`,
   )
-    .bind(row.id, "Service recovered — auto-resolved after successful checks.")
+    .bind(row.id, resolveBody)
     .run();
+
+  try {
+    await notifyIncidentResolved(env, { id: row.id, title: row.title, body: resolveBody });
+  } catch (err) {
+    console.error("Failed to send resolve notification", err);
+  }
 }
 
 async function rollupDaily(env: Env, monitorId: number, day: string): Promise<void> {
@@ -212,15 +218,18 @@ export async function runAllChecks(env: Env): Promise<void> {
       .run();
 
     if (failures === FAIL_THRESHOLD) {
-      const existing = await env.DB.prepare(
-        `SELECT i.id FROM incidents i
-         JOIN monitor_incidents mi ON mi.incident_id = i.id
-         WHERE mi.monitor_id = ? AND i.auto = 1 AND i.resolved_at IS NULL`,
-      )
-        .bind(monitor.id)
-        .first();
+      const inMaintenance = await isMonitorInMaintenance(env, monitor.id);
+      if (!inMaintenance) {
+        const existing = await env.DB.prepare(
+          `SELECT i.id FROM incidents i
+           JOIN monitor_incidents mi ON mi.incident_id = i.id
+           WHERE mi.monitor_id = ? AND i.auto = 1 AND i.resolved_at IS NULL`,
+        )
+          .bind(monitor.id)
+          .first();
 
-      if (!existing) await openAutoIncident(env, monitor);
+        if (!existing) await openAutoIncident(env, monitor);
+      }
     }
 
     if (successes === RESOLVE_THRESHOLD && outcome.ok) {

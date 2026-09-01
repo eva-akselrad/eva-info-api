@@ -21,15 +21,11 @@
   ],
   "send_email": [
     {
-      "name": "EMAIL",
-      "allowed_destination_addresses": [
-        "business@evaakselrad.com",
-        "evaakselrad@gmail.com"
-      ]
+      "name": "EMAIL"
     }
   ],
   "triggers": {
-    "crons": ["*/3 * * * *"]
+    "crons": ["*/3 * * * *", "0 12 * * *"]
   },
   "routes": [
     {

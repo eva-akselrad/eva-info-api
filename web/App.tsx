@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState, type FormEvent } from "react";
+import ServiceDetail from "./ServiceDetail";
 
 interface Service {
   slug: string;
@@ -17,11 +18,6 @@ interface StatusSummary {
   updatedAt: string;
 }
 
-interface IncidentMonitor {
-  slug: string;
-  name: string;
-}
-
 interface Incident {
   id: number;
   title: string;
@@ -32,7 +28,7 @@ interface Incident {
   resolved_at: string | null;
   latest_update?: string | null;
   latest_update_at?: string | null;
-  monitors?: IncidentMonitor[];
+  monitors?: Array<{ slug: string; name: string }>;
 }
 
 function statusLabel(status: string): string {
@@ -60,6 +56,11 @@ export default function App() {
   const [services, setServices] = useState<Service[]>([]);
   const [incidents, setIncidents] = useState<{ active: Incident[]; resolved: Incident[] } | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [selectedSlug, setSelectedSlug] = useState<string | null>(null);
+  const [subscribeEmail, setSubscribeEmail] = useState("");
+  const [subscribeDigest, setSubscribeDigest] = useState(false);
+  const [subscribeMsg, setSubscribeMsg] = useState<string | null>(null);
+  const [subscribeErr, setSubscribeErr] = useState<string | null>(null);
 
   useEffect(() => {
     async function load() {
@@ -88,6 +89,25 @@ export default function App() {
     return () => clearInterval(interval);
   }, []);
 
+  async function handleSubscribe(e: FormEvent) {
+    e.preventDefault();
+    setSubscribeMsg(null);
+    setSubscribeErr(null);
+    try {
+      const res = await fetch("/api/v1/subscribe", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: subscribeEmail.trim(), digest: subscribeDigest }),
+      });
+      const data = (await res.json()) as { message?: string; error?: string };
+      if (!res.ok) throw new Error(data.error ?? "Subscribe failed");
+      setSubscribeMsg(data.message ?? "Check your email to confirm.");
+      setSubscribeEmail("");
+    } catch (err) {
+      setSubscribeErr(err instanceof Error ? err.message : "Subscribe failed");
+    }
+  }
+
   const groups = [...new Set(services.map((s) => s.group))];
   const activeIncidents = incidents?.active ?? [];
   const hasActiveIncidents = activeIncidents.length > 0;
@@ -108,6 +128,10 @@ export default function App() {
 
   return (
     <div className="page">
+      {selectedSlug && (
+        <ServiceDetail slug={selectedSlug} onClose={() => setSelectedSlug(null)} />
+      )}
+
       <header className="header">
         <h1>Eva Akselrad Status</h1>
         <p className="subtitle">Uptime and incidents for evaakselrad.com services</p>
@@ -195,16 +219,19 @@ export default function App() {
             {services
               .filter((s) => s.group === group)
               .map((service) => (
-                <div className="service-row" key={service.slug}>
-                  <div className="service-name">
-                    <a href={service.url} target="_blank" rel="noreferrer">{service.name}</a>
-                  </div>
+                <button
+                  type="button"
+                  className="service-row service-row-btn"
+                  key={service.slug}
+                  onClick={() => setSelectedSlug(service.slug)}
+                >
+                  <div className="service-name">{service.name}</div>
                   <div className="uptime-bar" title="90-day uptime">
                     <div className="uptime-fill" style={{ width: `${service.uptime90d}%` }} />
                   </div>
                   <span className="uptime-text">{service.uptime90d}%</span>
                   <span className={`badge ${service.status}`}>{service.status}</span>
-                </div>
+                </button>
               ))}
           </div>
         </section>
@@ -224,10 +251,39 @@ export default function App() {
         </section>
       ) : null}
 
+      <section className="section">
+        <h2>Subscribe to updates</h2>
+        <div className="admin-card subscribe-card">
+          <p className="hint section-hint">
+            Get an email when incidents open or resolve. We will send a confirmation link first.
+          </p>
+          <form className="subscribe-form" onSubmit={handleSubscribe}>
+            <input
+              type="email"
+              className="field-input"
+              placeholder="your@email.com"
+              value={subscribeEmail}
+              onChange={(e) => setSubscribeEmail(e.target.value)}
+              required
+            />
+            <label className="digest-check">
+              <input
+                type="checkbox"
+                checked={subscribeDigest}
+                onChange={(e) => setSubscribeDigest(e.target.checked)}
+              />
+              Also send daily digest (8am ET)
+            </label>
+            <button type="submit" className="btn primary">Subscribe</button>
+          </form>
+          {subscribeMsg && <p className="notice success inline-notice">{subscribeMsg}</p>}
+          {subscribeErr && <p className="notice error inline-notice">{subscribeErr}</p>}
+        </div>
+      </section>
+
       <footer className="footer">
         <a href="/feed.xml">Atom feed</a> ·{" "}
-        <a href="https://evaakselrad.com">evaakselrad.com</a> ·{" "}
-        <a href="/admin">Admin</a>
+        <a href="https://evaakselrad.com">evaakselrad.com</a>
       </footer>
     </div>
   );

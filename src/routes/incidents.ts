@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import type { Env } from "../types";
-import { requireAdmin } from "../lib/auth";
+import { requireAdminOrScope, SCOPES } from "../lib/auth";
+import { notifyIncidentOpened, notifyIncidentResolved } from "../lib/notifications";
 
 const app = new Hono<{ Bindings: Env }>();
 
@@ -61,7 +62,9 @@ app.get("/:id", async (c) => {
 });
 
 app.post("/", async (c) => {
-  if (!requireAdmin(c)) return c.json({ error: "Unauthorized" }, 401);
+  if (!(await requireAdminOrScope(c, SCOPES.STATUS_WRITE))) {
+    return c.json({ error: "Unauthorized" }, 401);
+  }
 
   const body = await c.req.json<{
     title?: string;
@@ -79,12 +82,13 @@ app.post("/", async (c) => {
     .run();
 
   const incidentId = Number(result.meta.last_row_id);
+  const updateBody = body.body?.trim();
 
-  if (body.body?.trim()) {
+  if (updateBody) {
     await c.env.DB.prepare(
       `INSERT INTO incident_updates (incident_id, body, status) VALUES (?, ?, 'investigating')`,
     )
-      .bind(incidentId, body.body.trim())
+      .bind(incidentId, updateBody)
       .run();
   }
 
@@ -103,18 +107,32 @@ app.post("/", async (c) => {
     }
   }
 
+  try {
+    await notifyIncidentOpened(c.env, {
+      id: incidentId,
+      title: body.title.trim(),
+      body: updateBody,
+    });
+  } catch (err) {
+    console.error("Incident notify failed", err);
+  }
+
   return c.json({ id: incidentId }, 201);
 });
 
 app.patch("/:id", async (c) => {
-  if (!requireAdmin(c)) return c.json({ error: "Unauthorized" }, 401);
+  if (!(await requireAdminOrScope(c, SCOPES.STATUS_WRITE))) {
+    return c.json({ error: "Unauthorized" }, 401);
+  }
 
   const id = Number(c.req.param("id"));
   const body = await c.req.json<{ body?: string; status?: string; resolve?: boolean }>();
 
-  const incident = await c.env.DB.prepare(`SELECT id FROM incidents WHERE id = ?`)
+  const incident = await c.env.DB.prepare(
+    `SELECT id, title FROM incidents WHERE id = ?`,
+  )
     .bind(id)
-    .first();
+    .first<{ id: number; title: string }>();
 
   if (!incident) return c.json({ error: "Incident not found" }, 404);
 
@@ -130,12 +148,25 @@ app.patch("/:id", async (c) => {
       .run();
   }
 
-  if (body.body?.trim()) {
+  const updateBody = body.body?.trim();
+  if (updateBody) {
     await c.env.DB.prepare(
       `INSERT INTO incident_updates (incident_id, body, status) VALUES (?, ?, ?)`,
     )
-      .bind(id, body.body.trim(), body.status ?? null)
+      .bind(id, updateBody, body.status ?? null)
       .run();
+  }
+
+  if (body.resolve) {
+    try {
+      await notifyIncidentResolved(c.env, {
+        id: incident.id,
+        title: incident.title,
+        body: updateBody ?? "This incident has been resolved.",
+      });
+    } catch (err) {
+      console.error("Resolve notify failed", err);
+    }
   }
 
   return c.json({ ok: true });
