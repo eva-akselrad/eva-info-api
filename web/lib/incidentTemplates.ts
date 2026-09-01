@@ -19,21 +19,57 @@ export const INCIDENT_TEMPLATES: IncidentTemplate[] = [
   },
   {
     id: "cardfest-deploy",
-    label: "CardFest deploy",
-    title: "CardFest update in progress",
+    label: "CardFest staging deploy",
+    title: "CardFest staging update in progress",
     body:
-      "Deploying an update to the CardFest ticketing stack (API, checkout site, and scanner). Ticket purchases and QR scanning may be briefly interrupted.",
+      "Deploying an update to the CardFest staging stack on evaakselrad.com (API, checkout site, and scanner). Ticket purchases and scanning may be briefly interrupted.",
     impact: "major",
     monitorSlugs: ["cardfest-api", "cardfest-site", "cardfest-scanner"],
   },
   {
-    id: "cardfest-outage",
-    label: "CardFest outage",
-    title: "CardFest ticketing disruption",
+    id: "cardfest-prod-deploy",
+    label: "CardFest production deploy",
+    title: "CardFest Expo production update in progress",
     body:
-      "We are investigating an issue affecting CardFest ticketing. Checkout, ticket verification, or scanning may not work as expected. We are working to restore full service.",
+      "Deploying an update to the live CardFest Expo stack on cardfestexpo.com (API, site, and scanner). Live ticket sales and event scanning may be briefly interrupted.",
     impact: "critical",
+    monitorSlugs: ["cardfest-prod-api", "cardfest-prod-site", "cardfest-prod-scanner"],
+  },
+  {
+    id: "cardfest-outage",
+    label: "CardFest staging outage",
+    title: "CardFest staging disruption",
+    body:
+      "We are investigating an issue affecting CardFest staging on evaakselrad.com. Checkout, ticket verification, or scanning may not work as expected.",
+    impact: "major",
     monitorSlugs: ["cardfest-api", "cardfest-site", "cardfest-scanner"],
+  },
+  {
+    id: "cardfest-prod-outage",
+    label: "CardFest production outage",
+    title: "CardFest Expo live ticketing disruption",
+    body:
+      "We are investigating an issue affecting live CardFest Expo ticketing on cardfestexpo.com. Ticket purchases, verification, or scanning may be impacted.",
+    impact: "critical",
+    monitorSlugs: ["cardfest-prod-api", "cardfest-prod-site", "cardfest-prod-scanner"],
+  },
+  {
+    id: "ownstage-deploy",
+    label: "Ownstage deploy",
+    title: "Ownstage platform update in progress",
+    body:
+      "Deploying an update to Ownstage (site, demo checkout, API, and scanner). The demo environment may be briefly unavailable.",
+    impact: "major",
+    monitorSlugs: ["ownstage-site", "ownstage-demo", "ownstage-api", "ownstage-scanner"],
+  },
+  {
+    id: "ownstage-outage",
+    label: "Ownstage outage",
+    title: "Ownstage platform disruption",
+    body:
+      "We are investigating an issue affecting Ownstage services. The demo checkout, API, or scanner may not work as expected.",
+    impact: "major",
+    monitorSlugs: ["ownstage-site", "ownstage-demo", "ownstage-api", "ownstage-scanner"],
   },
   {
     id: "portfolio",
