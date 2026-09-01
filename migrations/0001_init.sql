@@ -94,7 +94,7 @@ INSERT INTO monitor_state (monitor_id, consecutive_failures, consecutive_success
 SELECT id, 0, 0, 'unknown' FROM monitors;
 
 INSERT INTO registry (slug, name, url, repo_url, group_name, description, sort_order) VALUES
-  ('portfolio', 'Portfolio', 'https://evaakselrad.com', 'https://github.com/evaakselrad/MyWebsite', 'Portfolio', 'Lighting design portfolio', 1),
-  ('cardfest', 'CardFest Expo', 'https://card.evaakselrad.com', 'https://github.com/evaakselrad/cardfest-expo-landing', 'Ticketing', 'Event ticketing platform (staging)', 2),
+  ('portfolio', 'Portfolio', 'https://evaakselrad.com', 'https://github.com/eva-akselrad/MyWebsite', 'Portfolio', 'Lighting design portfolio', 1),
+  ('cardfest', 'CardFest Expo', 'https://card.evaakselrad.com', 'https://github.com/eva-akselrad/cardfest-expo-landing', 'Ticketing', 'Event ticketing platform (staging)', 2),
   ('commuter', 'Commuter Dash', 'https://ah.evaakselrad.com', NULL, 'Tools', 'Arcadia commuter assistant', 3),
-  ('arcadiacs', 'Arcadia CS Club', 'https://arcadiacs.club', 'https://github.com/evaakselrad/arcadiacsclub', 'Client', 'Arcadia University CS Club site', 4);
+  ('arcadiacs', 'Arcadia CS Club', 'https://arcadiacs.club', 'https://github.com/eva-akselrad/arcadiacsclub', 'Client', 'Arcadia University CS Club site', 4);

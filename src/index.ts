@@ -7,6 +7,7 @@ import contactRoutes from "./routes/contact";
 import clientRoutes from "./routes/client";
 import { feedXml } from "./routes/feed";
 import { runAllChecks } from "./lib/checker";
+import { requireAdmin } from "./lib/auth";
 
 const app = new Hono<{ Bindings: Env }>();
 
@@ -17,6 +18,12 @@ app.onError((err, c) => {
 
 app.get("/api/health", (c) => c.json({ ok: true, service: "eva-info-api", status: "ok" }));
 app.get("/feed.xml", (c) => feedXml(c.env));
+
+app.post("/api/v1/admin/run-checks", async (c) => {
+  if (!requireAdmin(c)) return c.json({ error: "Unauthorized" }, 401);
+  await runAllChecks(c.env);
+  return c.json({ ok: true });
+});
 
 app.route("/api/v1/status", statusRoutes);
 app.route("/api/v1/incidents", incidentsRoutes);

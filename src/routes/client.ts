@@ -12,11 +12,11 @@ app.get("/", async (c) => {
   return c.json({
     ip: c.req.header("CF-Connecting-IP"),
     country: c.req.header("CF-IPCountry"),
-    colo: c.req.header("CF-Ray")?.split("-").pop(),
-    city: c.req.header("CF-IPCity"),
-    region: c.req.header("CF-IPRegion"),
-    timezone: c.req.header("CF-Timezone"),
-    asn: c.req.header("CF-ASN"),
+    colo: c.req.raw.cf?.colo,
+    city: c.req.raw.cf?.city,
+    region: c.req.raw.cf?.region,
+    timezone: c.req.raw.cf?.timezone,
+    asn: c.req.raw.cf?.asn,
     userAgent: c.req.header("User-Agent"),
     ray: c.req.header("CF-Ray"),
   });
