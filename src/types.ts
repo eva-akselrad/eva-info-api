@@ -9,7 +9,6 @@ export interface Env {
   ASSETS: Fetcher;
   EMAIL: SendEmail;
   ADMIN_API_KEY?: string;
-  LIBRARY_STATUS_CONTROL_TOKEN?: string;
   TURNSTILE_SECRET_PORTFOLIO?: string;
   FROM_EMAIL: string;
   OPS_NOTIFY_EMAIL?: string;

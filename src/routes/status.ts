@@ -1,25 +1,8 @@
 import { Hono } from "hono";
 import type { Env } from "../types";
 import { computeOverallStatus, getUptimePercent } from "../lib/checker";
-import { requireAdminOrScope, SCOPES } from "../lib/auth";
-import { requireLibraryStatusControl } from "../lib/library-status-auth";
-import { setEvasLibraryMode } from "../lib/library-mode";
 
 const app = new Hono<{ Bindings: Env }>();
-
-app.post("/services/evas-library/mode", async (c) => {
-  if (!(await requireLibraryStatusControl(c))) {
-    return c.json({ error: "Unauthorized" }, 401);
-  }
-
-  const body = await c.req.json<{ mode?: string }>().catch(() => ({ mode: undefined }));
-  if (body.mode !== "online" && body.mode !== "pc_offline") {
-    return c.json({ error: "mode must be online or pc_offline" }, 400);
-  }
-
-  const result = await setEvasLibraryMode(c.env, body.mode);
-  return c.json({ ok: true, ...result });
-});
 
 app.get("/status", async (c) => {
   const rows = await c.env.DB.prepare(

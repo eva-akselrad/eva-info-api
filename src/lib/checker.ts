@@ -1,6 +1,4 @@
 import type { CheckType, Env, MonitorRow, OverallStatus } from "../types";
-import { probeEvasLibrary } from "./library-probe";
-import { isEvasLibraryManuallyOffline } from "./library-mode";
 import { isMonitorInMaintenance } from "./maintenance";
 import { notifyIncidentOpened, notifyIncidentResolved } from "./notifications";
 
@@ -10,7 +8,6 @@ const CHECK_TIMEOUT_MS = 15000;
 
 interface CheckOutcome {
   ok: boolean;
-  expectedOffline?: boolean;
   statusCode: number | null;
   latencyMs: number;
   error: string | null;
@@ -171,36 +168,7 @@ export async function runAllChecks(env: Env): Promise<void> {
   const today = new Date().toISOString().slice(0, 10);
 
   for (const monitor of monitors.results ?? []) {
-    if (monitor.slug === "evas-library" && (await isEvasLibraryManuallyOffline(env))) {
-      await env.DB.prepare(
-        `INSERT INTO checks (monitor_id, ok, status_code, latency_ms, error) VALUES (?, 1, 200, 0, ?)`,
-      )
-        .bind(monitor.id, "Planned PC downtime")
-        .run();
-
-      await env.DB.prepare(
-        `UPDATE monitor_state SET
-           consecutive_failures = 0,
-           consecutive_successes = consecutive_successes + 1,
-           current_status = 'maintenance',
-           last_checked_at = datetime('now'),
-           last_latency_ms = 0,
-           last_status_code = 200,
-           last_error = NULL
-         WHERE monitor_id = ?`,
-      )
-        .bind(monitor.id)
-        .run();
-
-      await rollupDaily(env, monitor.id, today);
-      continue;
-    }
-
-    // Inline probe — fetching library.evaakselrad.com from this worker returns 530.
-    const outcome =
-      monitor.slug === "evas-library"
-        ? await probeEvasLibrary()
-        : await runSingleCheck(monitor.url, monitor.check_type);
+    const outcome = await runSingleCheck(monitor.url, monitor.check_type);
 
     await env.DB.prepare(
       `INSERT INTO checks (monitor_id, ok, status_code, latency_ms, error) VALUES (?, ?, ?, ?, ?)`,
@@ -226,14 +194,6 @@ export async function runAllChecks(env: Env): Promise<void> {
     }
 
     const currentStatus = outcome.ok ? "up" : failures >= FAIL_THRESHOLD ? "down" : "unknown";
-    const libraryMaintenance =
-      monitor.slug === "evas-library" && outcome.expectedOffline === true;
-    const resolvedStatus = libraryMaintenance
-      ? "maintenance"
-      : currentStatus;
-
-    const manualPcOffline =
-      monitor.slug === "evas-library" ? await isEvasLibraryManuallyOffline(env) : false;
 
     await env.DB.prepare(
       `UPDATE monitor_state SET
@@ -247,17 +207,17 @@ export async function runAllChecks(env: Env): Promise<void> {
        WHERE monitor_id = ?`,
     )
       .bind(
-        manualPcOffline ? 0 : failures,
-        manualPcOffline ? successes + 1 : successes,
-        manualPcOffline ? "maintenance" : resolvedStatus,
+        failures,
+        successes,
+        currentStatus,
         outcome.latencyMs,
-        manualPcOffline ? null : outcome.statusCode,
-        manualPcOffline ? null : outcome.error,
+        outcome.statusCode,
+        outcome.error,
         monitor.id,
       )
       .run();
 
-    if (failures === FAIL_THRESHOLD && !libraryMaintenance && !manualPcOffline) {
+    if (failures === FAIL_THRESHOLD) {
       const inMaintenance = await isMonitorInMaintenance(env, monitor.id);
       if (!inMaintenance) {
         const existing = await env.DB.prepare(
@@ -272,7 +232,7 @@ export async function runAllChecks(env: Env): Promise<void> {
       }
     }
 
-    if (successes === RESOLVE_THRESHOLD && outcome.ok && !libraryMaintenance) {
+    if (successes === RESOLVE_THRESHOLD && outcome.ok) {
       await resolveAutoIncident(env, monitor.id);
     }
 
