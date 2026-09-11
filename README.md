@@ -41,6 +41,16 @@ npm run deploy
 
 Open [status.evaakselrad.com/admin](https://status.evaakselrad.com/admin) and paste your `ADMIN_API_KEY` (stored in sessionStorage for the tab). Create incidents, post updates, resolve, and trigger manual health checks.
 
+## Retiring a service
+
+When shutting down a service, point its domain at a redirect worker that sends traffic to the shared retired page:
+
+```
+https://status.evaakselrad.com/retired?service=Service%20Name
+```
+
+The page shows a generic retirement notice with links to [evaakselrad.com](https://evaakselrad.com) and the status page. Remove the monitor/registry entry via a D1 migration when ready.
+
 
 ```bash
 curl https://status.evaakselrad.com/api/v1/status/status

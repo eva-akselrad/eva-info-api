@@ -1,8 +1,25 @@
 import { Hono } from "hono";
 import type { Env } from "../types";
 import { computeOverallStatus, getUptimePercent } from "../lib/checker";
+import { requireAdminOrScope, SCOPES } from "../lib/auth";
+import { requireLibraryStatusControl } from "../lib/library-status-auth";
+import { setEvasLibraryMode } from "../lib/library-mode";
 
 const app = new Hono<{ Bindings: Env }>();
+
+app.post("/services/evas-library/mode", async (c) => {
+  if (!(await requireLibraryStatusControl(c))) {
+    return c.json({ error: "Unauthorized" }, 401);
+  }
+
+  const body = await c.req.json<{ mode?: string }>().catch(() => ({ mode: undefined }));
+  if (body.mode !== "online" && body.mode !== "pc_offline") {
+    return c.json({ error: "mode must be online or pc_offline" }, 400);
+  }
+
+  const result = await setEvasLibraryMode(c.env, body.mode);
+  return c.json({ ok: true, ...result });
+});
 
 app.get("/status", async (c) => {
   const rows = await c.env.DB.prepare(
@@ -13,10 +30,11 @@ app.get("/status", async (c) => {
   const monitors = rows.results ?? [];
   const up = monitors.filter((m) => m.current_status === "up").length;
   const down = monitors.filter((m) => m.current_status === "down").length;
+  const maintenance = monitors.filter((m) => m.current_status === "maintenance").length;
 
   return c.json({
     status: computeOverallStatus(monitors),
-    summary: { total: monitors.length, up, down },
+    summary: { total: monitors.length, up, down, maintenance },
     updatedAt: new Date().toISOString(),
   });
 });
@@ -48,10 +66,21 @@ app.get("/services", async (c) => {
 app.get("/services/:slug/history", async (c) => {
   const slug = c.req.param("slug");
   const monitor = await c.env.DB.prepare(
-    `SELECT id, slug, name, group_name, url, check_type FROM monitors WHERE slug = ?`,
+    `SELECT m.id, m.slug, m.name, m.group_name, m.url, m.check_type, r.url AS public_url
+     FROM monitors m
+     LEFT JOIN registry r ON r.slug = m.slug
+     WHERE m.slug = ?`,
   )
     .bind(slug)
-    .first<{ id: number; slug: string; name: string; group_name: string; url: string; check_type: string }>();
+    .first<{
+      id: number;
+      slug: string;
+      name: string;
+      group_name: string;
+      url: string;
+      check_type: string;
+      public_url: string | null;
+    }>();
 
   if (!monitor) return c.json({ error: "Service not found" }, 404);
 
@@ -101,6 +130,7 @@ app.get("/services/:slug/history", async (c) => {
       name: monitor.name,
       group: monitor.group_name,
       url: monitor.url,
+      publicUrl: monitor.public_url ?? monitor.url.replace(/\/api\/.*$/, ""),
       checkType: monitor.check_type,
       status: state?.current_status ?? "unknown",
       lastCheckedAt: state?.last_checked_at ?? null,

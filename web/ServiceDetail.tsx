@@ -6,6 +6,7 @@ interface ServiceDetailData {
     name: string;
     group: string;
     url: string;
+    publicUrl?: string;
     status: string;
     lastCheckedAt: string | null;
     latencyMs: number | null;
@@ -25,6 +26,13 @@ interface ServiceDetailData {
 
 function formatDate(s: string): string {
   return new Date(s).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
+}
+
+function impactLabel(impact: string): string {
+  if (impact === "critical") return "Critical";
+  if (impact === "major") return "Major";
+  if (impact === "minor") return "Minor";
+  return "None";
 }
 
 export default function ServiceDetail({
@@ -51,61 +59,105 @@ export default function ServiceDetail({
   }, [slug]);
 
   return (
-    <div className="modal-backdrop" onClick={onClose} role="presentation">
-      <div className="modal-panel" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
-        <div className="modal-head">
-          <h2>{data?.service.name ?? slug}</h2>
-          <button type="button" className="btn subtle" onClick={onClose}>Close</button>
+    <div className="modal-overlay" onClick={onClose} role="presentation">
+      <div
+        className="modal"
+        onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="service-detail-title"
+      >
+        <div className="modal-header">
+          <div>
+            <h2 id="service-detail-title">{data?.service.name ?? slug}</h2>
+            {data && (
+              <p className="modal-header-meta">
+                <a
+                  href={data.service.publicUrl ?? data.service.url.replace(/\/api\/.*$/, "")}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  {data.service.publicUrl ?? data.service.url.replace(/\/api\/.*$/, "")}
+                </a>
+                {data.service.latencyMs != null ? ` · ${data.service.latencyMs} ms` : ""}
+                {data.service.lastCheckedAt
+                  ? ` · Checked ${formatDate(data.service.lastCheckedAt)}`
+                  : ""}
+              </p>
+            )}
+          </div>
+          <button type="button" className="modal-close" onClick={onClose} aria-label="Close">
+            ×
+          </button>
         </div>
 
-        {error && <div className="notice error">{error}</div>}
-        {!data && !error && <p className="empty">Loading…</p>}
+        <div className="modal-body">
+          {error && <div className="notice error">{error}</div>}
+          {!data && !error && <p style={{ color: "var(--text-muted)" }}>Loading…</p>}
 
-        {data && (
-          <>
-            <p className="modal-meta">
-              <a href={data.service.url} target="_blank" rel="noreferrer">{data.service.url}</a>
-              · <span className={`badge ${data.service.status}`}>{data.service.status}</span>
-            </p>
-
-            <div className="uptime-grid">
-              <div className="uptime-stat"><span>7d</span><strong>{data.uptime.days7}%</strong></div>
-              <div className="uptime-stat"><span>30d</span><strong>{data.uptime.days30}%</strong></div>
-              <div className="uptime-stat"><span>90d</span><strong>{data.uptime.days90}%</strong></div>
-            </div>
-
-            {data.daily.length > 0 && (
-              <div className="daily-chart" aria-hidden="true">
-                {data.daily.map((d) => {
-                  const pct = d.total ? (d.ok_count / d.total) * 100 : 100;
-                  return (
-                    <div
-                      key={d.day}
-                      className="daily-bar"
-                      style={{ height: `${Math.max(4, pct * 0.48)}px` }}
-                      title={`${d.day}: ${pct.toFixed(1)}%`}
-                    />
-                  );
-                })}
+          {data && (
+            <>
+              <div className="modal-stats">
+                <div className="stat-card">
+                  <span className="stat-card-label">7-day uptime</span>
+                  <span className="stat-card-value">{data.uptime.days7}%</span>
+                </div>
+                <div className="stat-card">
+                  <span className="stat-card-label">30-day uptime</span>
+                  <span className="stat-card-value">{data.uptime.days30}%</span>
+                </div>
+                <div className="stat-card">
+                  <span className="stat-card-label">90-day uptime</span>
+                  <span className="stat-card-value">{data.uptime.days90}%</span>
+                </div>
               </div>
-            )}
 
-            <h3 className="modal-subhead">Incidents</h3>
-            {!data.incidents.length ? (
-              <p className="empty">No incidents recorded for this service.</p>
-            ) : (
-              data.incidents.map((inc) => (
-                <div className="incident-card" key={inc.id}>
-                  <h4>{inc.title}</h4>
-                  <div className="incident-meta">
-                    {inc.impact} · {inc.status} · {formatDate(inc.created_at)}
-                    {inc.resolved_at ? ` · resolved ${formatDate(inc.resolved_at)}` : ""}
+              {data.daily.length > 0 && (
+                <div className="chart-container">
+                  <h3 className="chart-title">90-day history</h3>
+                  <div className="uptime-bars" aria-hidden="true">
+                    {data.daily.map((d) => {
+                      const pct = d.total ? (d.ok_count / d.total) * 100 : 100;
+                      const isDown = pct < 99;
+                      return (
+                        <div
+                          key={d.day}
+                          className={`uptime-bar${isDown ? " uptime-bar--down" : ""}`}
+                          title={`${d.day}: ${pct.toFixed(1)}% uptime`}
+                        />
+                      );
+                    })}
                   </div>
                 </div>
-              ))
-            )}
-          </>
-        )}
+              )}
+
+              <h3 className="chart-title">Incidents</h3>
+              {!data.incidents.length ? (
+                <p style={{ color: "var(--text-muted)", fontSize: "0.9375rem" }}>
+                  No incidents recorded for this service.
+                </p>
+              ) : (
+                <div className="incident-list">
+                  {data.incidents.map((inc) => (
+                    <article className={`incident-item incident-item--${inc.impact}`} key={inc.id}>
+                      <div className="incident-item-header">
+                        <h3>{inc.title}</h3>
+                        <div className="incident-item-tags">
+                          <span className={`tag tag--${inc.impact}`}>{impactLabel(inc.impact)}</span>
+                          <span className="tag tag--neutral">{inc.status}</span>
+                        </div>
+                      </div>
+                      <footer className="incident-item-footer">
+                        Opened {formatDate(inc.created_at)}
+                        {inc.resolved_at ? ` · Resolved ${formatDate(inc.resolved_at)}` : ""}
+                      </footer>
+                    </article>
+                  ))}
+                </div>
+              )}
+            </>
+          )}
+        </div>
       </div>
     </div>
   );

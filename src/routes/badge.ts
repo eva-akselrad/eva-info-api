@@ -4,14 +4,14 @@ import { computeOverallStatus } from "../lib/checker";
 
 const LABELS: Record<string, string> = {
   operational: "All systems operational",
-  degraded: "Partial outage",
+  degraded: "Partial disruption",
   outage: "Major outage",
 };
 
-const COLORS: Record<string, { bg: string; text: string }> = {
-  operational: { bg: "#14532d", text: "#86efac" },
-  degraded: { bg: "#78350f", text: "#fde68a" },
-  outage: { bg: "#7f1d1d", text: "#fecaca" },
+const DOT_COLORS: Record<string, string> = {
+  operational: "#22c55e",
+  degraded: "#f59e0b",
+  outage: "#ef4444",
 };
 
 const app = new Hono<{ Bindings: Env }>();
@@ -25,14 +25,16 @@ app.get("/badge.svg", async (c) => {
   const monitors = rows.results ?? [];
   const status = computeOverallStatus(monitors);
   const label = LABELS[status] ?? status;
-  const colors = COLORS[status] ?? COLORS.operational;
+  const dot = DOT_COLORS[status] ?? DOT_COLORS.operational;
 
-  const width = Math.max(200, label.length * 7 + 40);
+  const textWidth = label.length * 6.5;
+  const width = Math.ceil(16 + 10 + 8 + textWidth + 12);
   const svg = `<?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="28" role="img" aria-label="${label}">
-  <rect width="100%" height="100%" rx="6" fill="${colors.bg}"/>
-  <text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle"
-    fill="${colors.text}" font-family="system-ui,sans-serif" font-size="12" font-weight="600">${label}</text>
+<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="24" role="img" aria-label="${label}">
+  <rect width="100%" height="100%" rx="4" fill="#141414" stroke="#2a2a2a" stroke-width="1"/>
+  <circle cx="12" cy="12" r="4" fill="${dot}"/>
+  <text x="24" y="12" dominant-baseline="middle"
+    fill="#d4d4d4" font-family="system-ui,-apple-system,sans-serif" font-size="11" font-weight="500">${label}</text>
 </svg>`;
 
   return new Response(svg, {

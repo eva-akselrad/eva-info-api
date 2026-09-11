@@ -8,6 +8,9 @@ import clientRoutes from "./routes/client";
 import subscribeRoutes from "./routes/subscribe";
 import badgeRoutes from "./routes/badge";
 import adminRoutes from "./routes/admin";
+import libraryEmailRoutes from "./routes/library-email";
+import probesRoutes from "./routes/probes";
+import retiredRoutes from "./routes/retired";
 import { feedXml } from "./routes/feed";
 import { runAllChecks } from "./lib/checker";
 import { sendDailyDigest } from "./lib/digest";
@@ -22,6 +25,7 @@ app.onError((err, c) => {
 
 app.get("/api/health", (c) => c.json({ ok: true, service: "eva-info-api", status: "ok" }));
 app.get("/feed.xml", (c) => feedXml(c.env));
+app.route("/retired", retiredRoutes);
 
 app.post("/api/v1/admin/run-checks", async (c) => {
   if (!(await requireAdminOrScope(c, SCOPES.ADMIN))) {
@@ -39,6 +43,8 @@ app.route("/api/v1/contact", contactRoutes);
 app.route("/api/v1/client", clientRoutes);
 app.route("/api/v1/subscribe", subscribeRoutes);
 app.route("/api/v1/admin", adminRoutes);
+app.route("/api/v1/library/email", libraryEmailRoutes);
+app.route("/api/v1/probes", probesRoutes);
 
 export default {
   fetch: app.fetch,

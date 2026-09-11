@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import ServiceDetail from "./ServiceDetail";
 
 interface Service {
@@ -14,7 +14,7 @@ interface Service {
 
 interface StatusSummary {
   status: "operational" | "degraded" | "outage";
-  summary: { total: number; up: number; down: number };
+  summary: { total: number; up: number; down: number; maintenance: number };
   updatedAt: string;
 }
 
@@ -33,15 +33,21 @@ interface Incident {
 
 function statusLabel(status: string): string {
   if (status === "operational") return "All systems operational";
-  if (status === "degraded") return "Partial outage";
-  return "Major outage";
+  if (status === "degraded") return "Partial system disruption";
+  return "Major system outage";
+}
+
+function statusDescription(status: string, up: number, total: number): string {
+  if (status === "operational") return `All ${total} monitored components are responding normally.`;
+  if (status === "degraded") return `${up} of ${total} components operational. Some services may be affected.`;
+  return `Critical issues detected across monitored services.`;
 }
 
 function impactLabel(impact: string): string {
-  if (impact === "critical") return "Critical impact";
-  if (impact === "major") return "Major impact";
-  if (impact === "minor") return "Minor impact";
-  return "No user impact";
+  if (impact === "critical") return "Critical";
+  if (impact === "major") return "Major";
+  if (impact === "minor") return "Minor";
+  return "None";
 }
 
 function formatDate(s: string): string {
@@ -49,6 +55,17 @@ function formatDate(s: string): string {
     dateStyle: "medium",
     timeStyle: "short",
   });
+}
+
+function StatusIndicator({ status }: { status: string }) {
+  const label =
+    status === "up" ? "Operational" : status === "down" ? "Down" : status === "maintenance" ? "PC offline" : "Unknown";
+  return (
+    <span className={`status-indicator status-indicator--${status}`}>
+      <span className="status-indicator-dot" aria-hidden="true" />
+      {label}
+    </span>
+  );
 }
 
 export default function App() {
@@ -110,180 +127,185 @@ export default function App() {
 
   const groups = [...new Set(services.map((s) => s.group))];
   const activeIncidents = incidents?.active ?? [];
-  const hasActiveIncidents = activeIncidents.length > 0;
-  const worstImpact = hasActiveIncidents
-    ? activeIncidents.reduce((worst, inc) => {
-        const order = ["none", "minor", "major", "critical"];
-        return order.indexOf(inc.impact) > order.indexOf(worst) ? inc.impact : worst;
-      }, "none")
-    : "none";
 
   if (error) {
     return (
-      <div className="page">
-        <div className="error">{error}</div>
+      <div className="site">
+        <main className="site-main">
+          <div className="notice error">{error}</div>
+        </main>
       </div>
     );
   }
 
   return (
-    <div className="page">
+    <div className="site">
       {selectedSlug && (
         <ServiceDetail slug={selectedSlug} onClose={() => setSelectedSlug(null)} />
       )}
 
-      <header className="header">
-        <h1>Eva Akselrad Status</h1>
-        <p className="subtitle">Uptime and incidents for evaakselrad.com services</p>
+      <header className="site-header">
+        <div className="site-brand">
+          <a className="site-brand-name" href="https://evaakselrad.com">Eva Akselrad</a>
+          <span className="site-brand-divider" aria-hidden="true">/</span>
+          <span className="site-brand-page">System Status</span>
+        </div>
         {summary && (
-          <div className={`overall ${hasActiveIncidents ? "overall-alert" : ""}`}>
-            <span className={`status-dot ${summary.status}`} />
-            <div>
-              <div className="status-label">{statusLabel(summary.status)}</div>
-              <div className="status-meta">
-                {summary.summary.up} of {summary.summary.total} services up · Updated{" "}
-                {formatDate(summary.updatedAt)}
-              </div>
-            </div>
-          </div>
+          <time className="site-updated" dateTime={summary.updatedAt}>
+            Updated {formatDate(summary.updatedAt)}
+          </time>
         )}
       </header>
 
-      {hasActiveIncidents && (
-        <section className="section incidents-hero" aria-label="Active incidents">
-          <div className={`incidents-banner impact-${worstImpact}`}>
-            <div className="incidents-banner-head">
-              <span className="incidents-banner-icon" aria-hidden="true">!</span>
-              <div>
-                <h2 className="incidents-banner-title">
-                  {activeIncidents.length} active incident{activeIncidents.length === 1 ? "" : "s"}
-                </h2>
-                <p className="incidents-banner-sub">
-                  {worstImpact === "critical" || worstImpact === "major"
-                    ? "Some services may be unavailable right now."
-                    : "We are tracking an issue — details below."}
-                </p>
-              </div>
+      <main className="site-main">
+        {summary && (
+          <section
+            className={`status-hero status-hero--${summary.status}`}
+            aria-label="Current system status"
+          >
+            <div className="status-hero-icon" aria-hidden="true">
+              <span className={`status-hero-dot status-hero-dot--${summary.status}`} />
             </div>
-          </div>
-
-          {activeIncidents.map((inc) => (
-            <article className={`incident-feature impact-${inc.impact}`} key={inc.id}>
-              <div className="incident-feature-head">
-                <h3>{inc.title}</h3>
-                <div className="incident-badges">
-                  <span className={`impact-badge ${inc.impact}`}>{impactLabel(inc.impact)}</span>
-                  <span className="status-pill">{inc.status}</span>
-                  {inc.auto ? <span className="status-pill auto">automated</span> : null}
-                </div>
-              </div>
-
-              {inc.latest_update ? (
-                <p className="incident-body">{inc.latest_update}</p>
-              ) : null}
-
-              {inc.monitors?.length ? (
-                <div className="incident-services">
-                  <span className="incident-services-label">Affected:</span>
-                  {inc.monitors.map((m) => (
-                    <span className="service-tag" key={m.slug}>{m.name}</span>
-                  ))}
-                </div>
-              ) : null}
-
-              <div className="incident-meta">
-                Opened {formatDate(inc.created_at)}
-                {inc.latest_update_at ? ` · Updated ${formatDate(inc.latest_update_at)}` : ""}
-              </div>
-            </article>
-          ))}
-        </section>
-      )}
-
-      {!hasActiveIncidents && (
-        <section className="section">
-          <div className="all-clear-banner">
-            <span className="status-dot operational" />
-            <div>
-              <strong>No active incidents</strong>
-              <p className="all-clear-sub">All monitored services are operating normally.</p>
+            <div className="status-hero-body">
+              <h1>{statusLabel(summary.status)}</h1>
+              <p>{statusDescription(summary.status, summary.summary.up, summary.summary.total)}</p>
             </div>
-          </div>
-        </section>
-      )}
+          </section>
+        )}
 
-      {groups.map((group) => (
-        <section className="section" key={group}>
-          <h2>{group}</h2>
-          <div className="group-card">
-            {services
-              .filter((s) => s.group === group)
-              .map((service) => (
-                <button
-                  type="button"
-                  className="service-row service-row-btn"
-                  key={service.slug}
-                  onClick={() => setSelectedSlug(service.slug)}
-                >
-                  <div className="service-name">{service.name}</div>
-                  <div className="uptime-bar" title="90-day uptime">
-                    <div className="uptime-fill" style={{ width: `${service.uptime90d}%` }} />
+        {activeIncidents.length > 0 && (
+          <section className="content-section" aria-label="Active incidents">
+            <div className="section-heading">
+              <h2>Active incidents</h2>
+              <span className="section-count">{activeIncidents.length}</span>
+            </div>
+            <div className="incident-list">
+              {activeIncidents.map((inc) => (
+                <article className={`incident-item incident-item--${inc.impact}`} key={inc.id}>
+                  <div className="incident-item-header">
+                    <h3>{inc.title}</h3>
+                    <div className="incident-item-tags">
+                      <span className={`tag tag--${inc.impact}`}>{impactLabel(inc.impact)}</span>
+                      <span className="tag tag--neutral">{inc.status}</span>
+                      {inc.auto ? <span className="tag tag--neutral">Automated</span> : null}
+                    </div>
                   </div>
-                  <span className="uptime-text">{service.uptime90d}%</span>
-                  <span className={`badge ${service.status}`}>{service.status}</span>
-                </button>
+                  {inc.latest_update && <p className="incident-item-body">{inc.latest_update}</p>}
+                  {inc.monitors?.length ? (
+                    <div className="incident-item-services">
+                      {inc.monitors.map((m) => (
+                        <span className="tag tag--outline" key={m.slug}>{m.name}</span>
+                      ))}
+                    </div>
+                  ) : null}
+                  <footer className="incident-item-footer">
+                    Opened {formatDate(inc.created_at)}
+                    {inc.latest_update_at ? ` · Updated ${formatDate(inc.latest_update_at)}` : ""}
+                  </footer>
+                </article>
               ))}
+            </div>
+          </section>
+        )}
+
+        {groups.map((group) => (
+          <section className="content-section" key={group}>
+            <div className="section-heading">
+              <h2>{group}</h2>
+            </div>
+            <div className="service-table">
+              <div className="service-table-header" aria-hidden="true">
+                <span>Component</span>
+                <span>90-day uptime</span>
+                <span>Status</span>
+              </div>
+              {services
+                .filter((s) => s.group === group)
+                .map((service) => (
+                  <button
+                    type="button"
+                    className="service-table-row"
+                    key={service.slug}
+                    onClick={() => setSelectedSlug(service.slug)}
+                  >
+                    <span className="service-table-name">{service.name}</span>
+                    <span className="service-table-uptime">
+                      <span className="uptime-track" aria-hidden="true">
+                        <span
+                          className="uptime-track-fill"
+                          style={{ width: `${service.uptime90d}%` }}
+                        />
+                      </span>
+                      <span className="uptime-value">{service.uptime90d}%</span>
+                    </span>
+                    <StatusIndicator status={service.status} />
+                  </button>
+                ))}
+            </div>
+          </section>
+        ))}
+
+        {incidents?.resolved?.length ? (
+          <section className="content-section">
+            <div className="section-heading">
+              <h2>Recently resolved</h2>
+            </div>
+            <div className="resolved-list">
+              {incidents.resolved.slice(0, 5).map((inc) => (
+                <div className="resolved-item" key={inc.id}>
+                  <span className="resolved-title">{inc.title}</span>
+                  <span className="resolved-date">
+                    {inc.resolved_at ? formatDate(inc.resolved_at) : "—"}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </section>
+        ) : null}
+
+        <section className="content-section subscribe-section">
+          <div className="section-heading">
+            <h2>Subscribe to updates</h2>
+          </div>
+          <div className="panel">
+            <p className="panel-lead">
+              Receive email notifications when incidents are opened or resolved.
+              A confirmation link is required before messages are sent.
+            </p>
+            <form className="subscribe-form" onSubmit={handleSubscribe}>
+              <div className="subscribe-row">
+                <input
+                  type="email"
+                  className="field-input"
+                  placeholder="Email address"
+                  value={subscribeEmail}
+                  onChange={(e) => setSubscribeEmail(e.target.value)}
+                  required
+                  aria-label="Email address"
+                />
+                <button type="submit" className="btn btn-primary">Subscribe</button>
+              </div>
+              <label className="checkbox-label">
+                <input
+                  type="checkbox"
+                  checked={subscribeDigest}
+                  onChange={(e) => setSubscribeDigest(e.target.checked)}
+                />
+                Include daily digest (8:00 AM ET)
+              </label>
+            </form>
+            {subscribeMsg && <p className="notice success">{subscribeMsg}</p>}
+            {subscribeErr && <p className="notice error">{subscribeErr}</p>}
           </div>
         </section>
-      ))}
+      </main>
 
-      {incidents?.resolved?.length ? (
-        <section className="section">
-          <h2>Recently resolved</h2>
-          {incidents.resolved.slice(0, 5).map((inc) => (
-            <div className="incident-card resolved" key={inc.id}>
-              <h3>{inc.title}</h3>
-              <div className="incident-meta">
-                Resolved {inc.resolved_at ? formatDate(inc.resolved_at) : "—"}
-              </div>
-            </div>
-          ))}
-        </section>
-      ) : null}
-
-      <section className="section">
-        <h2>Subscribe to updates</h2>
-        <div className="admin-card subscribe-card">
-          <p className="hint section-hint">
-            Get an email when incidents open or resolve. We will send a confirmation link first.
-          </p>
-          <form className="subscribe-form" onSubmit={handleSubscribe}>
-            <input
-              type="email"
-              className="field-input"
-              placeholder="your@email.com"
-              value={subscribeEmail}
-              onChange={(e) => setSubscribeEmail(e.target.value)}
-              required
-            />
-            <label className="digest-check">
-              <input
-                type="checkbox"
-                checked={subscribeDigest}
-                onChange={(e) => setSubscribeDigest(e.target.checked)}
-              />
-              Also send daily digest (8am ET)
-            </label>
-            <button type="submit" className="btn primary">Subscribe</button>
-          </form>
-          {subscribeMsg && <p className="notice success inline-notice">{subscribeMsg}</p>}
-          {subscribeErr && <p className="notice error inline-notice">{subscribeErr}</p>}
-        </div>
-      </section>
-
-      <footer className="footer">
-        <a href="/feed.xml">Atom feed</a> ·{" "}
-        <a href="https://evaakselrad.com">evaakselrad.com</a>
+      <footer className="site-footer">
+        <nav className="site-footer-nav" aria-label="Footer">
+          <a href="/feed.xml">Atom feed</a>
+          <a href="https://evaakselrad.com">evaakselrad.com</a>
+        </nav>
+        <p className="site-footer-note">Checks run every 3 minutes from Cloudflare Workers.</p>
       </footer>
     </div>
   );

@@ -1,5 +1,5 @@
 export type CheckType = "http" | "json_ok";
-export type MonitorStatus = "up" | "down" | "unknown";
+export type MonitorStatus = "up" | "down" | "maintenance" | "unknown";
 export type OverallStatus = "operational" | "degraded" | "outage";
 export type IncidentStatus = "investigating" | "identified" | "monitoring" | "resolved";
 export type IncidentImpact = "none" | "minor" | "major" | "critical";
@@ -9,6 +9,7 @@ export interface Env {
   ASSETS: Fetcher;
   EMAIL: SendEmail;
   ADMIN_API_KEY?: string;
+  LIBRARY_STATUS_CONTROL_TOKEN?: string;
   TURNSTILE_SECRET_PORTFOLIO?: string;
   FROM_EMAIL: string;
   OPS_NOTIFY_EMAIL?: string;
